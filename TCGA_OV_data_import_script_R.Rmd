@@ -1,0 +1,73 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r setup}
+knitr::opts_knit$set(root.dir = normalizePath("/home1/andreav6/TCGA_data"))
+```
+
+
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+BiocManager::install()
+if (!require("TCGAbiolinks", quietly = TRUE))
+BiocManager::install("TCGAbiolinks")
+library(BiocManager)
+library(TCGAbiolinks)
+```
+``` {r}
+if (!require("SummarizedExperiment", quietly = TRUE))
+BiocManager::install("SummarizedExperiment")
+
+library(BiocManager)
+library(TCGAbiolinks)
+library(SummarizedExperiment)
+```
+
+
+# rna_se
+```{r}
+rna_query <- GDCquery(project ="TCGA-OV",
+                      data.category = "Transcriptome Profiling",
+                      data.type = "Gene Expression Quantification",
+                      workflow.type = "STAR - Counts")
+
+GDCdownload(rna_query)
+rna_se <- GDCprepare(rna_query)
+```
+# create dataframes and tables from transcriptomics data
+```{r}
+rna_clinical <- rna_se@colData
+rna_clinical <- data.frame(rna_clinical)
+
+rna_genes <- rna_se@rowRanges@elementMetadata
+rna_genes <- data.frame(rna_genes)
+
+rna_counts <- rna_se@assays@data$unstranded
+rna_counts <- data.frame(rna_counts)
+
+rownames(rna_counts) <- rna_genes$gene_id
+colnames(rna_counts) <- rna_clinical$patient
+
+write.csv(rna_counts, 'TCGA_OV_rna_counts.csv', row.names=T)
+write.csv(rna_clinical, 'TCGA_OV_rna_clinical.csv')
+write.csv(rna_genes, 'TCGA_OV_rna_genes.csv')
+
+```
+
+Now donwload and extract clinical information
+```{r}
+clin_query <- GDCquery(project = "TCGA-OV",
+                       data.category = "Clinical",
+                       data.type = "Clinical Supplement",
+                       data.format = 'BCR Biotab')
+GDCdownload(clin_query)
+clinical.BCRtab.all <- GDCprepare(clin_query)
+rad <- clinical.BCRtab.all$clinical_radiation_ov[-c(1,2),]
+drug <- clinical.BCRtab.all$clinical_drug_ov[-c(1,2),]
+clinical <- clinical.BCRtab.all$clinical_patient_ov[-c(1,2),]
+
+write.csv(clinical, 'TCGA_OV_clinical_data.csv')
+```
+
